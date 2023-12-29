@@ -49,9 +49,10 @@ private fun ContenidoCamara() {
     val contextoLocal: Context = LocalContext.current
     val cicloDeVidaLocal: LifecycleOwner = LocalLifecycleOwner.current
     val controladorDeLaCamara: LifecycleCameraController = remember { LifecycleCameraController(contextoLocal) }
-    var textoDetectado: String by remember { mutableStateOf("No se ha detectado la cédula") }
-    fun textoActual(texto: String) {
-        textoDetectado = texto
+    var cedulaDetectada: String by remember { mutableStateOf("No se ha detectado la cédula") }
+
+    fun cedulaActual(cedula: String) {
+        cedulaDetectada = cedula
     }
 
     var fotoTomada: Boolean by remember { mutableStateOf(false) }
@@ -89,21 +90,21 @@ private fun ContenidoCamara() {
                             controladorDeLaCamara = controladorDeLaCamara,
                             cicloDeVida = cicloDeVidaLocal,
                             vistaPrevia = previewView,
-                            textoDetectado = ::textoActual
+                            cedulaDetectada = ::cedulaActual
                         )
                     }
                 }
             )
 
             //INFO: Si se detecta una cédula usando el patrón, se muestra el texto detectado y se detiene la cámara.
-            if (textoDetectado.esUnaCedula() && !fotoTomada) {
+            if (cedulaDetectada.esUnaCedula() && !fotoTomada) {
                 Text(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(androidx.compose.ui.graphics.Color.White)
                         .padding(24.dp),
                     color = androidx.compose.ui.graphics.Color.Black,
-                    text = "Cédula detectada: $textoDetectado",
+                    text = "Cédula detectada: $cedulaDetectada",
                 )
 
                 //INFO: Se toma la foto.
@@ -122,7 +123,7 @@ private fun iniciarReconocimientoDeTexto(
     controladorDeLaCamara: LifecycleCameraController,
     cicloDeVida: LifecycleOwner,
     vistaPrevia: PreviewView,
-    textoDetectado: (String) -> Unit
+    cedulaDetectada: (String) -> Unit
 ) {
 
     controladorDeLaCamara.imageAnalysisTargetSize = CameraController.OutputSize(AspectRatio.RATIO_16_9)
@@ -130,7 +131,7 @@ private fun iniciarReconocimientoDeTexto(
         ContextCompat.getMainExecutor(contexto),
         AnalizadorDeReconocimientoDeTexto(
             cedulaDeLaCotizacion = cedulaDeLaCotizacion,
-            cedulaDetectada = textoDetectado
+            cedulaDetectada = cedulaDetectada
         )
     )
 
