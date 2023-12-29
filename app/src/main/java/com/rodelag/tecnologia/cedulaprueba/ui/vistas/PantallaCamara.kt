@@ -2,6 +2,8 @@ package com.rodelag.tecnologia.cedulaprueba.ui.vistas
 
 import android.content.Context
 import android.graphics.Color
+import android.net.Uri
+import android.util.Log
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import androidx.camera.core.AspectRatio
@@ -35,7 +37,19 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.rodelag.tecnologia.cedulaprueba.modelo.AnalizadorDeReconocimientoDeTexto
 import com.rodelag.tecnologia.cedulaprueba.comun.esUnaCedula
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okio.IOException
 import java.io.File
+import java.io.InputStream
 
 @Composable
 fun PantallaCamara() {
@@ -139,10 +153,11 @@ private fun iniciarReconocimientoDeTexto(
     vistaPrevia.controller = controladorDeLaCamara
 }
 
+@OptIn(DelicateCoroutinesApi::class)
 private fun tomarFoto(contextoLocal: Context, controladorDeLaCamara: LifecycleCameraController, onFotoTomada: () -> Unit) {
 
     //INFO: Se crea el archivo donde se guardará la foto, Poner como nombre el ID de la Cotización, para poder asociar la foto con la cotización.
-    val fotoOutputFile = File(contextoLocal.externalMediaDirs.first(), "${System.currentTimeMillis()}.jpg")
+    val fotoOutputFile = File(contextoLocal.externalMediaDirs.first(), "${System.currentTimeMillis()}.png")
 
     //INFO: Se tomará la foto y se guardará en el directorio de la aplicación, en la carpeta Pictures, acá por ejemplo podemos procesarla para enviar la foto a un servidor por medio de la API.
     controladorDeLaCamara.takePicture(
@@ -150,12 +165,71 @@ private fun tomarFoto(contextoLocal: Context, controladorDeLaCamara: LifecycleCa
         ContextCompat.getMainExecutor(contextoLocal),
         object : ImageCapture.OnImageSavedCallback {
             override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                //INFO: Llamar a la función enviarImagen después de que la imagen se haya guardado con éxito
+                val fotoUri = Uri.fromFile(fotoOutputFile)
+
+                GlobalScope.launch(Dispatchers.IO) {
+                    enviarImagen(contextoLocal, fotoUri)
+                }
+
                 onFotoTomada()
             }
 
             override fun onError(exception: ImageCaptureException) {
+                Log.e("RODELAG", "Error al tomar la foto: ${exception.message}")
                 //INFO: Manejar el error...
             }
         }
     )
+}
+
+fun enviarImagen(contextoLocal: Context, fotoUri: Uri) {
+    val client = OkHttpClient()
+
+    //INFO: Obtener el InputStream del Uri
+    val inputStream: InputStream? = contextoLocal.contentResolver.openInputStream(fotoUri)
+    val bytes = inputStream?.readBytes()
+
+    //INFO: Crear un RequestBody a partir de los bytes del archivo
+    val requestBodyFile = bytes?.toRequestBody("image/png".toMediaTypeOrNull())
+
+    //INFO: Obtener el nombre del archivo
+    val nombreArchivo = File(fotoUri.path!!).name
+
+    //INFO: Verificar si el archivo de la imagen existe
+    if (!File(fotoUri.path!!).exists()) {
+        return
+    }
+
+    //INFO: Crear un cuerpo de solicitud de varias partes
+    val requestBody = requestBodyFile?.let {
+        MultipartBody.Builder()
+        .setType(MultipartBody.FORM)
+        .addFormDataPart(
+            "imagenes[]",
+            nombreArchivo,
+            it
+        )
+        .addFormDataPart("productoElconix", "false")
+        .addFormDataPart("carpetaAmazonS3", "cedulasfacturacion")
+        .addFormDataPart("bucketAmazonS3", "rodelag-imagenes")
+        .build()
+    }
+
+    //INFO: Crear una solicitud POST
+    val request = requestBody?.let {
+        Request.Builder()
+        .url("https://dev.rodelag.com/amazonS3/")
+        .post(it)
+        .addHeader("Authorization", "Bearer TOKEN")
+        .build()
+    }
+
+    //INFO: Realizar la solicitud
+    if (request != null) {
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Error inesperado: $response")
+            Log.e("RODELAG","${response.body?.string()}")
+        }
+    }
 }

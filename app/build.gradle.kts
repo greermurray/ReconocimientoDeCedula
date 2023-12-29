@@ -67,7 +67,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    //implementation("com.google.firebase:firebase-ml-vision:24.1.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
 
     implementation("androidx.camera:camera-core:1.3.1")
     implementation("androidx.camera:camera-camera2:1.3.1")
