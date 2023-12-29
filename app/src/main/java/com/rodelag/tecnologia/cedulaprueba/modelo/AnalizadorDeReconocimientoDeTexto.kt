@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-class AnalizadorDeReconocimientoDeTexto(private val textoDetectado: (String) -> Unit) : ImageAnalysis.Analyzer {
+class AnalizadorDeReconocimientoDeTexto(val cedulaDeLaCotizacion: String, private val cedulaDetectada: (String) -> Unit) : ImageAnalysis.Analyzer {
 
     companion object {
         const val TIEMPO_DE_ESPERA_DEL_ACELERADOR_MS = 1_000L
@@ -38,10 +38,10 @@ class AnalizadorDeReconocimientoDeTexto(private val textoDetectado: (String) -> 
                     .addOnSuccessListener { textoDeLaImagen: Text ->
                         for (bloqueDeTexto in textoDeLaImagen.textBlocks) {
                             for (lineaDeTexto in bloqueDeTexto.lines) {
-                                for (elemento in lineaDeTexto.elements) {
+                                for (cedula in lineaDeTexto.elements) {
                                     //INFO: Aquí se puede hacer para que solo se detecte el texto deseado, por ejemplo, que solo detecte el número de la cédula que sea igual a la de la cotización.
-                                    if (elemento.text == "8-800-682") {
-                                        textoDetectado(elemento.text)
+                                    if (cedula.text == cedulaDeLaCotizacion) {
+                                        cedulaDetectada(cedula.text)
                                     }
                                 }
                             }

@@ -56,6 +56,9 @@ private fun ContenidoCamara() {
 
     var fotoTomada: Boolean by remember { mutableStateOf(false) }
 
+    //INFO: Aquí se puede cambiar el número de la cédula que se desea detectar.
+    val cedulaDeLaCotizacion: String by remember { mutableStateOf("8-800-682") }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = { TopAppBar(title = { Text("Rodelag Prueba") }) },
@@ -79,7 +82,9 @@ private fun ContenidoCamara() {
                         implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                         scaleType = PreviewView.ScaleType.FILL_START
                     }.also { previewView ->
+                        //INFO: Inicia el reconocimiento de texto.
                         iniciarReconocimientoDeTexto(
+                            cedulaDeLaCotizacion = cedulaDeLaCotizacion,
                             contexto = context,
                             controladorDeLaCamara = controladorDeLaCamara,
                             cicloDeVida = cicloDeVidaLocal,
@@ -101,6 +106,7 @@ private fun ContenidoCamara() {
                     text = "Cédula detectada: $textoDetectado",
                 )
 
+                //INFO: Se toma la foto.
                 tomarFoto(contextoLocal, controladorDeLaCamara) {
                     fotoTomada = true
                     controladorDeLaCamara.unbind()
@@ -111,6 +117,7 @@ private fun ContenidoCamara() {
 }
 
 private fun iniciarReconocimientoDeTexto(
+    cedulaDeLaCotizacion: String,
     contexto: Context,
     controladorDeLaCamara: LifecycleCameraController,
     cicloDeVida: LifecycleOwner,
@@ -121,7 +128,10 @@ private fun iniciarReconocimientoDeTexto(
     controladorDeLaCamara.imageAnalysisTargetSize = CameraController.OutputSize(AspectRatio.RATIO_16_9)
     controladorDeLaCamara.setImageAnalysisAnalyzer(
         ContextCompat.getMainExecutor(contexto),
-        AnalizadorDeReconocimientoDeTexto(textoDetectado = textoDetectado)
+        AnalizadorDeReconocimientoDeTexto(
+            cedulaDeLaCotizacion = cedulaDeLaCotizacion,
+            cedulaDetectada = textoDetectado
+        )
     )
 
     controladorDeLaCamara.bindToLifecycle(cicloDeVida)
@@ -129,8 +139,11 @@ private fun iniciarReconocimientoDeTexto(
 }
 
 private fun tomarFoto(contextoLocal: Context, controladorDeLaCamara: LifecycleCameraController, onFotoTomada: () -> Unit) {
+
+    //INFO: Se crea el archivo donde se guardará la foto, Poner como nombre el ID de la Cotización, para poder asociar la foto con la cotización.
     val fotoOutputFile = File(contextoLocal.externalMediaDirs.first(), "${System.currentTimeMillis()}.jpg")
 
+    //INFO: Se tomará la foto y se guardará en el directorio de la aplicación, en la carpeta Pictures, acá por ejemplo podemos procesarla para enviar la foto a un servidor por medio de la API.
     controladorDeLaCamara.takePicture(
         ImageCapture.OutputFileOptions.Builder(fotoOutputFile).build(),
         ContextCompat.getMainExecutor(contextoLocal),
